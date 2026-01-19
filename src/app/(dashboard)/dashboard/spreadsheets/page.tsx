@@ -29,6 +29,18 @@ const SPREADSHEETS: Spreadsheet[] = [
     category: "Dashboard",
   },
   {
+    name: "Financial Cache",
+    description: "Cached Steam financial data",
+    editUrl: "https://docs.google.com/spreadsheets/d/1CyxLqzN-dsOE7P3jliaT2xSw0-zb9hBImWlve7dUF0U/edit",
+    category: "Financials",
+  },
+  {
+    name: "UTM Links",
+    description: "Marketing UTM tracking links",
+    editUrl: "https://docs.google.com/spreadsheets/d/1m_2tJytEOxThocixJnNHMFDaR8Auvz1nPkNSSrzD4JY/edit",
+    category: "Marketing",
+  },
+  {
     name: "Backend Localization",
     description: "Backend translation strings",
     editUrl: "https://docs.google.com/spreadsheets/d/12pha4I93gcVfSmwhfhOEDsUx3AZ7ZfyIVyWboPoef10/edit?gid=0#gid=0",

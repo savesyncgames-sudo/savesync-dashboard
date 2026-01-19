@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
   children,
@@ -144,6 +145,7 @@ export default function DashboardLayout({
         )}
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }
