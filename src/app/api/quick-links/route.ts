@@ -14,16 +14,16 @@ interface QuickLink {
 let cachedLinks: QuickLink[] | null = null;
 let cacheTimestamp: number = 0;
 
-async function fetchQuickLinks(): Promise<QuickLink[]> {
+async function fetchQuickLinks(forceRefresh = false): Promise<QuickLink[]> {
   const now = Date.now();
 
-  if (cachedLinks && now - cacheTimestamp < CACHE_DURATION_MS) {
+  if (!forceRefresh && cachedLinks && now - cacheTimestamp < CACHE_DURATION_MS) {
     return cachedLinks;
   }
 
   try {
     const response = await fetch(QUICK_LINKS_CSV_URL, {
-      next: { revalidate: 1800 },
+      cache: forceRefresh ? "no-store" : "default",
     });
 
     if (!response.ok) {
@@ -76,14 +76,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const forceRefresh = searchParams.get("refresh") === "true";
 
-    if (forceRefresh) {
-      // Clear cache to force fresh fetch
-      cachedLinks = null;
-      cacheTimestamp = 0;
-    }
-
-    const links = await fetchQuickLinks();
-    return NextResponse.json({ links, cached: !forceRefresh && cachedLinks !== null });
+    const links = await fetchQuickLinks(forceRefresh);
+    return NextResponse.json({ links });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch quick links", links: [] },

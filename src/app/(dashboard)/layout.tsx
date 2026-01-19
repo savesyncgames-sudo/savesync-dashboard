@@ -100,8 +100,8 @@ export default function DashboardLayout({
           </div>
         </div>
       </header>
-      <div className="flex">
-        <div className="hidden md:block">
+      <div className="flex h-[calc(100vh-4rem)]">
+        <div className="hidden md:block sticky top-16 h-[calc(100vh-4rem)]">
           <Sidebar />
         </div>
         {sidebarOpen && (
