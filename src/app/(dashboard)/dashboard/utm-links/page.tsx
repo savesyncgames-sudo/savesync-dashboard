@@ -88,10 +88,21 @@ export default function UtmLinksPage() {
     setSaving(true);
     try {
       const action = editingRowIndex ? "update" : "add";
+
       // Always set BaseURL to the Steam store page
+      const baseUrl = "https://store.steampowered.com/app/3832010";
+
+      // Generate UTM URL from fields
+      let utmUrl = `${baseUrl}?utm_source=${editData["utm_source"] || ""}`;
+      utmUrl += `&utm_campaign=${editData["utm_campaign"] || ""}`;
+      utmUrl += `&utm_medium=${editData["utm_medium"] || ""}`;
+      if (editData["utm_content"]) utmUrl += `&utm_content=${editData["utm_content"]}`;
+      if (editData["utm_term"]) utmUrl += `&utm_term=${editData["utm_term"]}`;
+
       const rowData = {
         ...editData,
-        BaseURL: "https://store.steampowered.com/app/3832010"
+        BaseURL: baseUrl,
+        URL: utmUrl
       };
       const res = await fetch("/api/utm-links", {
         method: "POST",
