@@ -92,17 +92,27 @@ export default function UtmLinksPage() {
       // Always set BaseURL to the Steam store page
       const baseUrl = "https://store.steampowered.com/app/3832010";
 
+      // Helper to get field value case-insensitively
+      const getField = (name: string) => {
+        const key = Object.keys(editData).find(k => k.toLowerCase() === name.toLowerCase());
+        return key ? editData[key] : "";
+      };
+
       // Generate UTM URL from fields
-      let utmUrl = `${baseUrl}?utm_source=${editData["utm_source"] || ""}`;
-      utmUrl += `&utm_campaign=${editData["utm_campaign"] || ""}`;
-      utmUrl += `&utm_medium=${editData["utm_medium"] || ""}`;
-      if (editData["utm_content"]) utmUrl += `&utm_content=${editData["utm_content"]}`;
-      if (editData["utm_term"]) utmUrl += `&utm_term=${editData["utm_term"]}`;
+      let utmUrl = `${baseUrl}?utm_source=${getField("utm_source")}`;
+      utmUrl += `&utm_campaign=${getField("utm_campaign")}`;
+      utmUrl += `&utm_medium=${getField("utm_medium")}`;
+      if (getField("utm_content")) utmUrl += `&utm_content=${getField("utm_content")}`;
+      if (getField("utm_term")) utmUrl += `&utm_term=${getField("utm_term")}`;
+
+      // Find actual column names (case-insensitive)
+      const baseUrlKey = headers.find(h => h.toLowerCase() === "baseurl") || "BaseURL";
+      const urlKey = headers.find(h => h.toLowerCase() === "url") || "URL";
 
       const rowData = {
         ...editData,
-        BaseURL: baseUrl,
-        URL: utmUrl
+        [baseUrlKey]: baseUrl,
+        [urlKey]: utmUrl
       };
       const res = await fetch("/api/utm-links", {
         method: "POST",
