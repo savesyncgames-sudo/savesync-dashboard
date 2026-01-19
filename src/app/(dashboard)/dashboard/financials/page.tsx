@@ -16,6 +16,7 @@ interface SalesResult {
   date: string;
   country_code: string;
   gross_units_sold?: number;
+  gross_units_returned?: number;
   gross_sales_usd?: string;
   net_sales_usd?: string;
   gross_returns_usd?: string;
@@ -29,41 +30,56 @@ interface FinancialData {
   dateRange?: { from: string; to: string };
 }
 
-type TimePeriod = "latest" | "week" | "2weeks" | "month" | "all";
+type TimePeriod = "latest" | "yesterday" | "week" | "2weeks" | "month" | "all" | "custom";
 
 export default function FinancialsPage() {
   const [allDates, setAllDates] = useState<string[]>([]);
-  const [period, setPeriod] = useState<TimePeriod>("month");
+  const [period, setPeriod] = useState<TimePeriod>("latest");
   const [data, setData] = useState<FinancialData>({ results: [], country_info: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [stats, setStats] = useState({ cached: 0, fetched: 0 });
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
+  const [usdToInr, setUsdToInr] = useState<number | null>(null);
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
+
+  useEffect(() => {
+    fetch("https://api.frankfurter.app/latest?from=USD&to=INR")
+      .then((res) => res.json())
+      .then((data) => setUsdToInr(data.rates?.INR || null))
+      .catch(() => setUsdToInr(null));
+  }, []);
 
   const filteredDates = useMemo(() => {
     if (!allDates.length) return [];
     const latestDate = allDates[allDates.length - 1];
+    const yesterdayDate = allDates[allDates.length - 2];
 
     if (period === "latest") {
       return [latestDate];
+    }
+
+    if (period === "yesterday") {
+      return yesterdayDate ? [yesterdayDate] : [];
     }
 
     if (period === "all") {
       return allDates;
     }
 
-    // Calculate cutoff date string (YYYY/MM/DD format)
-    const days = period === "week" ? 7 : period === "2weeks" ? 14 : 31;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().split("T")[0].replace(/-/g, "/");
+    if (period === "custom") {
+      if (!customFrom || !customTo) return [];
+      const fromStr = customFrom.replace(/-/g, "/");
+      const toStr = customTo.replace(/-/g, "/");
+      return allDates.filter((d) => d >= fromStr && d <= toStr);
+    }
 
-    // For week/2weeks/month - exclude the latest date (incomplete data)
-    return allDates.filter((d) => {
-      if (d === latestDate) return false;
-      return d >= cutoffStr; // String comparison works for YYYY/MM/DD
-    });
-  }, [allDates, period]);
+    // For week/2weeks/month - take last N dates excluding the latest (incomplete) date
+    const count = period === "week" ? 7 : period === "2weeks" ? 14 : 31;
+    const datesWithoutLatest = allDates.slice(0, -1);
+    return datesWithoutLatest.slice(-count);
+  }, [allDates, period, customFrom, customTo]);
 
   async function fetchDates() {
     try {
@@ -112,21 +128,41 @@ export default function FinancialsPage() {
   const getCountryName = (code: string) =>
     data.country_info.find((c) => c.country_code === code)?.country_name || code;
 
-  const summary = useMemo(
-    () =>
-      data.results.reduce(
-        (acc, r) => ({
-          grossSales: acc.grossSales + parseFloat(r.gross_sales_usd || "0"),
-          netSales: acc.netSales + parseFloat(r.net_sales_usd || "0"),
-          returns: acc.returns + parseFloat(r.gross_returns_usd || "0"),
-          tax: acc.tax + parseFloat(r.net_tax_usd || "0"),
-          unitsSold: acc.unitsSold + (r.gross_units_sold || 0),
-          activations: acc.activations + (r.gross_units_activated || 0),
-        }),
-        { grossSales: 0, netSales: 0, returns: 0, tax: 0, unitsSold: 0, activations: 0 }
-      ),
-    [data.results]
-  );
+  const summary = useMemo(() => {
+    const base = data.results.reduce(
+      (acc, r) => ({
+        grossSales: acc.grossSales + parseFloat(r.gross_sales_usd || "0"),
+        netSales: acc.netSales + parseFloat(r.net_sales_usd || "0"),
+        returns: acc.returns + parseFloat(r.gross_returns_usd || "0"),
+        tax: acc.tax + parseFloat(r.net_tax_usd || "0"),
+        unitsSold: acc.unitsSold + (r.gross_units_sold || 0),
+        unitsReturned: acc.unitsReturned + (r.gross_units_returned || 0),
+        activations: acc.activations + (r.gross_units_activated || 0),
+      }),
+      { grossSales: 0, netSales: 0, returns: 0, tax: 0, unitsSold: 0, unitsReturned: 0, activations: 0 }
+    );
+
+    // Calculate flow
+    const totalUnits = base.unitsSold + base.activations;
+    const netUnits = totalUnits - base.unitsReturned;
+
+    const afterTax = base.grossSales - base.tax - Math.abs(base.returns);
+    const steamCut = afterTax * 0.3;
+    const developerCut = afterTax * 0.7;
+    const usWithholding = developerCut * 0.15;
+    const finalPayout = developerCut - usWithholding;
+
+    return {
+      ...base,
+      totalUnits,
+      netUnits,
+      afterTax,
+      steamCut,
+      developerCut,
+      usWithholding,
+      finalPayout,
+    };
+  }, [data.results]);
 
   const countryBreakdown = useMemo(() => {
     const map = new Map<string, { gross: number; net: number; units: number }>();
@@ -145,11 +181,15 @@ export default function FinancialsPage() {
 
   const periods: { key: TimePeriod; label: string }[] = [
     { key: "latest", label: "Latest" },
+    { key: "yesterday", label: "Yesterday" },
     { key: "week", label: "Week" },
     { key: "2weeks", label: "2 Weeks" },
     { key: "month", label: "Month" },
     { key: "all", label: "All Time" },
+    { key: "custom", label: "Custom" },
   ];
+
+  const dayCount = filteredDates.length;
 
   const formatDateRange = () => {
     if (!data.dateRange) return "";
@@ -159,34 +199,16 @@ export default function FinancialsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Financials</h1>
-          <p className="text-sm text-muted-foreground">
-            {formatDateRange()}
-            {stats.fetched > 0 && ` • ${stats.fetched} fetched`}
-            {stats.cached > 0 && ` • ${stats.cached} cached`}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {periods.map((p) => (
-            <Button
-              key={p.key}
-              variant={period === p.key ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPeriod(p.key)}
-              disabled={loading}
-            >
-              {p.label}
-            </Button>
-          ))}
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold">Financials</h1>
           <Button
             variant="destructive"
             size="sm"
             onClick={() => setShowRefreshDialog(true)}
             disabled={loading}
-            className="gap-2"
+            className="gap-1 sm:gap-2"
           >
             <svg
               className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -201,9 +223,46 @@ export default function FinancialsPage() {
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            Hard Refresh
+            <span className="hidden sm:inline">Hard</span> Refresh
           </Button>
         </div>
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          {formatDateRange()}
+          {dayCount > 0 && ` • ${dayCount} day${dayCount !== 1 ? "s" : ""}`}
+          {stats.fetched > 0 && ` • ${stats.fetched} fetched`}
+          {stats.cached > 0 && ` • ${stats.cached} cached`}
+        </p>
+        <div className="flex gap-1.5 sm:gap-2 flex-wrap items-center">
+          {periods.map((p) => (
+            <Button
+              key={p.key}
+              variant={period === p.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPeriod(p.key)}
+              disabled={loading}
+              className="text-xs sm:text-sm px-2 sm:px-3 h-7 sm:h-8"
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        {period === "custom" && (
+          <div className="flex gap-2 items-center flex-wrap">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm flex-1 min-w-[130px]"
+            />
+            <span className="text-muted-foreground text-sm">to</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm flex-1 min-w-[130px]"
+            />
+          </div>
+        )}
       </div>
 
       {error && (
@@ -220,61 +279,149 @@ export default function FinancialsPage() {
 
       {!loading && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Gross Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">${summary.grossSales.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Net Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-green-400">${summary.netSales.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tax</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-yellow-400">${summary.tax.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Returns</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-red-400">${Math.abs(summary.returns).toFixed(2)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Units</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{summary.unitsSold + summary.activations}</p>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Revenue Flow Infographic */}
+          <Card>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg">Revenue Flow</CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 sm:px-6">
+              <div className="flex flex-col gap-2 sm:gap-3">
+                {/* Step 1: Gross Sales */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex-1 rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Customer Pays</p>
+                        <p className="text-base sm:text-xl font-bold">${summary.grossSales.toFixed(2)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Units</p>
+                        <p className="text-sm sm:text-lg font-semibold">{summary.totalUnits}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block text-xs text-muted-foreground text-center w-24">
+                    Gross Sales<br />(incl. tax)
+                  </div>
+                </div>
+
+                {/* Arrow + Deduction: Sales Tax */}
+                <div className="flex items-center gap-2 pl-2 sm:pl-4">
+                  <div className="flex items-center gap-1 sm:gap-2 text-yellow-400">
+                    <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    <span className="text-xs sm:text-sm font-medium">-${summary.tax.toFixed(2)}</span>
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Tax → Govt</span>
+                </div>
+
+                {/* Arrow + Deduction: Returns */}
+                {(summary.returns !== 0 || summary.unitsReturned > 0) && (
+                  <div className="flex items-center gap-2 pl-2 sm:pl-4">
+                    <div className="flex items-center gap-1 sm:gap-2 text-red-400">
+                      <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                      <span className="text-xs sm:text-sm font-medium">-${Math.abs(summary.returns).toFixed(2)}</span>
+                      <span className="text-[10px] sm:text-xs opacity-70">{summary.unitsReturned}u</span>
+                    </div>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Refunds</span>
+                  </div>
+                )}
+
+                {/* Step 2: After Tax */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex-1 rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">After Tax & Returns</p>
+                    <p className="text-base sm:text-xl font-bold">${summary.afterTax.toFixed(2)}</p>
+                  </div>
+                  <div className="hidden sm:block text-xs text-muted-foreground text-center w-24">
+                    Base Revenue
+                  </div>
+                </div>
+
+                {/* Arrow + Deduction: Steam Cut */}
+                <div className="flex items-center gap-2 pl-2 sm:pl-4">
+                  <div className="flex items-center gap-1 sm:gap-2 text-orange-400">
+                    <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    <span className="text-xs sm:text-sm font-medium">-${summary.steamCut.toFixed(2)}</span>
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Steam 30% → Valve</span>
+                </div>
+
+                {/* Step 3: Developer Cut */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex-1 rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Your 70% Cut</p>
+                    <p className="text-base sm:text-xl font-bold">${summary.developerCut.toFixed(2)}</p>
+                  </div>
+                  <div className="hidden sm:block text-xs text-muted-foreground text-center w-24">
+                    Before<br />Withholding
+                  </div>
+                </div>
+
+                {/* Arrow + Deduction: US Withholding */}
+                <div className="flex items-center gap-2 pl-2 sm:pl-4">
+                  <div className="flex items-center gap-1 sm:gap-2 text-purple-400">
+                    <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    <span className="text-xs sm:text-sm font-medium">-${summary.usWithholding.toFixed(2)}</span>
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">US 15% → IRS <span className="hidden sm:inline">(foreign tax credit)</span></span>
+                </div>
+
+                {/* Step 4: Final Payout */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex-1 rounded-lg border-2 border-green-500/50 bg-green-500/10 p-2 sm:p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] sm:text-xs text-green-400">You Receive</p>
+                        <p className="text-lg sm:text-2xl font-bold text-green-400">${summary.finalPayout.toFixed(2)}</p>
+                        {usdToInr && (
+                          <p className="text-xs sm:text-sm text-green-400/70">
+                            ₹{(summary.finalPayout * usdToInr).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] sm:text-xs text-green-400">Net</p>
+                        <p className="text-sm sm:text-lg font-semibold text-green-400">{summary.netUnits}u</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block text-xs text-muted-foreground text-center w-24">
+                    To Your Bank<br />(if &gt;$100)
+                    {usdToInr && <><br /><span className="text-[10px]">@₹{usdToInr.toFixed(2)}</span></>}
+                  </div>
+                </div>
+
+                {/* Effective Rate */}
+                <div className="mt-2 pt-2 sm:pt-3 border-t border-border">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                    Take-home: <span className="font-medium text-foreground">{((summary.finalPayout / summary.grossSales) * 100 || 0).toFixed(1)}%</span>
+                    <span className="hidden sm:inline"> of gross • Steam net_sales: <span className="font-medium text-foreground">${summary.netSales.toFixed(2)}</span></span>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Sales by Country</CardTitle>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg">Sales by Country</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6">
               {countryBreakdown.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">No data available</p>
+                <p className="text-center text-muted-foreground py-8 text-sm">No data available</p>
               )}
               {countryBreakdown.map((country) => (
-                <div key={country.code} className="flex items-center gap-4">
-                  <div className="w-32 font-medium truncate">{country.name}</div>
-                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div key={country.code} className="flex items-center gap-2 sm:gap-4">
+                  <div className="w-20 sm:w-32 text-xs sm:text-sm font-medium truncate">{country.name}</div>
+                  <div className="flex-1 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary rounded-full"
                       style={{
@@ -282,8 +429,8 @@ export default function FinancialsPage() {
                       }}
                     />
                   </div>
-                  <div className="w-24 text-right text-sm">${country.gross.toFixed(2)}</div>
-                  <div className="w-16 text-right text-sm text-muted-foreground">{country.units} units</div>
+                  <div className="w-16 sm:w-24 text-right text-xs sm:text-sm">${country.gross.toFixed(2)}</div>
+                  <div className="hidden sm:block w-16 text-right text-sm text-muted-foreground">{country.units}u</div>
                 </div>
               ))}
             </CardContent>

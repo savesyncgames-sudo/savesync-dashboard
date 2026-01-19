@@ -15,12 +15,35 @@ export default function DashboardLayout({
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pstTime, setPstTime] = useState<string>("");
+  const [usdToInr, setUsdToInr] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/sign-in");
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    fetch("https://api.frankfurter.app/latest?from=USD&to=INR")
+      .then((res) => res.json())
+      .then((data) => setUsdToInr(data.rates?.INR || null))
+      .catch(() => setUsdToInr(null));
+
+    const updatePstTime = () => {
+      setPstTime(new Date().toLocaleString("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        month: "short",
+        day: "numeric",
+      }));
+    };
+    updatePstTime();
+    const interval = setInterval(updatePstTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading) {
     return (
@@ -68,6 +91,10 @@ export default function DashboardLayout({
             <span className="text-xl font-bold">SaveSync</span>
           </div>
           <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+              {pstTime && <span className="bg-muted px-2 py-1 rounded">PST: {pstTime}</span>}
+              {usdToInr && <span className="bg-muted px-2 py-1 rounded">$1 = ₹{usdToInr.toFixed(2)}</span>}
+            </div>
             <div className="flex items-center gap-2">
               {user.photoURL ? (
                 <img

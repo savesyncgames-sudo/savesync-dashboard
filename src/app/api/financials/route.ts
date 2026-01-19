@@ -154,7 +154,7 @@ export async function GET(request: Request) {
       // Hard refresh - clear the sheet first
       if (refresh && useCache) {
         try {
-          await clearSheet(sheetId, "financials!A:I", token);
+          await clearSheet(sheetId, "financials!A:J", token);
           console.log("Cleared sheet for hard refresh");
         } catch (e) {
           console.error("Failed to clear sheet:", e);
@@ -164,7 +164,7 @@ export async function GET(request: Request) {
       // Check cache (skip if hard refresh)
       if (useCache && !refresh) {
         try {
-          const sheetData = await getSheetData(sheetId, "financials!A:I", token);
+          const sheetData = await getSheetData(sheetId, "financials!A:J", token);
           if (sheetData && sheetData.length > 1) {
             const headers = sheetData[0];
             for (let i = 1; i < sheetData.length; i++) {
@@ -208,6 +208,10 @@ export async function GET(request: Request) {
         results.forEach((data, idx) => {
           const date = batch[idx];
           if (data?.response?.results) {
+            // Log first result to see actual field names
+            if (data.response.results.length > 0 && idx === 0) {
+              console.log("Steam API sample result:", JSON.stringify(data.response.results[0]));
+            }
             data.response.results.forEach((r: any) => {
               newRows.push({ ...r, date, last_fetched: today });
             });
@@ -218,18 +222,28 @@ export async function GET(request: Request) {
         });
       }
 
-      // Write new data to cache
+      // Write new data to cache (remove duplicates first)
       if (useCache && newRows.length > 0) {
         try {
-          const headers = ["date", "country_code", "gross_sales_usd", "net_sales_usd", "gross_returns_usd", "net_tax_usd", "gross_units_sold", "gross_units_activated", "last_fetched"];
+          const headers = ["date", "country_code", "gross_sales_usd", "net_sales_usd", "gross_returns_usd", "net_tax_usd", "gross_units_sold", "gross_units_returned", "gross_units_activated", "last_fetched"];
+          const newDatesSet = new Set(newRows.map((r) => r.date));
 
-          // Check if sheet has headers
-          const existingData = await getSheetData(sheetId, "financials!A1:A1", token);
-          if (!existingData || existingData.length === 0) {
-            await appendToSheet(sheetId, "financials!A1", [headers], token);
+          // Read all existing data
+          const allSheetData = await getSheetData(sheetId, "financials!A:J", token);
+
+          // Filter out rows for dates we're about to write (avoid duplicates)
+          const existingRows: string[][] = [];
+          if (allSheetData && allSheetData.length > 1) {
+            for (let i = 1; i < allSheetData.length; i++) {
+              const rowDate = allSheetData[i][0];
+              if (!newDatesSet.has(rowDate)) {
+                existingRows.push(allSheetData[i]);
+              }
+            }
           }
 
-          const rowsToWrite = newRows.map((r) => [
+          // Prepare new rows
+          const newRowsFormatted = newRows.map((r) => [
             r.date || "",
             r.country_code || "",
             r.gross_sales_usd || "0",
@@ -237,10 +251,15 @@ export async function GET(request: Request) {
             r.gross_returns_usd || "0",
             r.net_tax_usd || "0",
             String(r.gross_units_sold || 0),
+            String(r.gross_units_returned || 0),
             String(r.gross_units_activated || 0),
             r.last_fetched || today,
           ]);
-          await appendToSheet(sheetId, "financials!A:I", rowsToWrite, token);
+
+          // Clear sheet and write all data (headers + existing + new)
+          await clearSheet(sheetId, "financials!A:J", token);
+          const allRows = [headers, ...existingRows, ...newRowsFormatted];
+          await appendToSheet(sheetId, "financials!A1", allRows, token);
         } catch (e) {
           console.error("Failed to write cache:", e);
         }
@@ -269,6 +288,7 @@ export async function GET(request: Request) {
         gross_returns_usd: r.gross_returns_usd,
         net_tax_usd: r.net_tax_usd,
         gross_units_sold: parseInt(r.gross_units_sold) || 0,
+        gross_units_returned: parseInt(r.gross_units_returned) || 0,
         gross_units_activated: parseInt(r.gross_units_activated) || 0,
       }));
 
