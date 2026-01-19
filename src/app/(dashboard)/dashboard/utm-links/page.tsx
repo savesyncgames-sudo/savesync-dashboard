@@ -88,13 +88,18 @@ export default function UtmLinksPage() {
     setSaving(true);
     try {
       const action = editingRowIndex ? "update" : "add";
+      // Always set BaseURL to the Steam store page
+      const rowData = {
+        ...editData,
+        BaseURL: "https://store.steampowered.com/app/3832010"
+      };
       const res = await fetch("/api/utm-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           rowIndex: editingRowIndex,
-          rowData: editData,
+          rowData,
           headers
         }),
       });
