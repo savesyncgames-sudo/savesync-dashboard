@@ -142,8 +142,8 @@ export default function FinancialsPage() {
       { grossSales: 0, netSales: 0, returns: 0, tax: 0, unitsSold: 0, unitsReturned: 0, activations: 0 }
     );
 
-    // Calculate flow
-    const totalUnits = base.unitsSold + base.activations;
+    // Calculate flow (exclude free key activations from count)
+    const totalUnits = base.unitsSold;
     const netUnits = totalUnits - base.unitsReturned;
 
     const afterTax = base.grossSales - base.tax - Math.abs(base.returns);
