@@ -11,6 +11,16 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useEffect, useMemo, useState } from "react";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    ReferenceLine,
+} from "recharts";
 
 interface SalesResult {
     date: string;
@@ -152,6 +162,9 @@ export default function FinancialsPage() {
         const usWithholding = developerCut * 0.15;
         const finalPayout = developerCut - usWithholding;
 
+        const days = filteredDates.length;
+        const dailyAverage = days > 0 ? finalPayout / days : 0;
+
         return {
             ...base,
             totalUnits,
@@ -161,8 +174,9 @@ export default function FinancialsPage() {
             developerCut,
             usWithholding,
             finalPayout,
+            dailyAverage,
         };
-    }, [data.results]);
+    }, [data.results, filteredDates.length]);
 
     const countryBreakdown = useMemo(() => {
         const map = new Map<string, { gross: number; net: number; units: number }>();
@@ -179,6 +193,59 @@ export default function FinancialsPage() {
             .sort((a, b) => b.gross - a.gross);
     }, [data]);
 
+    // Aggregate data by date for chart
+    const chartData = useMemo(() => {
+        const dateMap = new Map<string, { gross: number; tax: number; returns: number }>();
+        data.results.forEach((r) => {
+            const existing = dateMap.get(r.date) || { gross: 0, tax: 0, returns: 0 };
+            dateMap.set(r.date, {
+                gross: existing.gross + parseFloat(r.gross_sales_usd || "0"),
+                tax: existing.tax + parseFloat(r.net_tax_usd || "0"),
+                returns: existing.returns + parseFloat(r.gross_returns_usd || "0"),
+            });
+        });
+
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        const sorted = Array.from(dateMap.entries())
+            .map(([date, d]) => {
+                const afterTax = d.gross - d.tax - Math.abs(d.returns);
+                const developerCut = afterTax * 0.7;
+                const finalPayout = developerCut * 0.85; // After 15% US withholding
+                const parts = date.split("/");
+
+                let month: number, day: number, year: number;
+                // Check if first part is a 4-digit year (YYYY/MM/DD)
+                if (parts[0].length === 4) {
+                    year = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    day = parseInt(parts[2], 10);
+                } else {
+                    // Assume MM/DD/YYYY
+                    month = parseInt(parts[0], 10) - 1;
+                    day = parseInt(parts[1], 10);
+                    year = parseInt(parts[2], 10);
+                }
+
+                const monthName = months[month] || "???";
+                const shortYear = String(year).slice(-2);
+
+                return {
+                    fullDate: date,
+                    timestamp: new Date(year, month, day).getTime(),
+                    payout: parseFloat(finalPayout.toFixed(2)),
+                    date: `${monthName} ${day} '${shortYear}`,
+                };
+            })
+            .sort((a, b) => a.timestamp - b.timestamp);
+
+        // Add index for chart positioning
+        return sorted.map((item, index) => ({
+            ...item,
+            index,
+        }));
+    }, [data.results]);
+
     const periods: { key: TimePeriod; label: string }[] = [
         { key: "latest", label: "Latest" },
         { key: "yesterday", label: "Yesterday" },
@@ -194,15 +261,44 @@ export default function FinancialsPage() {
     const formatDateRange = () => {
         if (!data.dateRange) return "";
         const { from, to } = data.dateRange;
-        if (from === to) return from;
-        return `${from} - ${to}`;
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        // Convert date to "Mon DD, YYYY"
+        const convertDate = (d: string) => {
+            const parts = d.split("/");
+            if (parts.length === 3) {
+                let month: number, day: number, year: string;
+                // Check if first part is a 4-digit year (YYYY/MM/DD)
+                if (parts[0].length === 4) {
+                    year = parts[0];
+                    month = parseInt(parts[1], 10) - 1;
+                    day = parseInt(parts[2], 10);
+                } else {
+                    // Assume MM/DD/YYYY
+                    month = parseInt(parts[0], 10) - 1;
+                    day = parseInt(parts[1], 10);
+                    year = parts[2];
+                }
+                const monthName = months[month] || "???";
+                return `${monthName} ${day}, ${year}`;
+            }
+            return d;
+        };
+        const fromFormatted = convertDate(from);
+        const toFormatted = convertDate(to);
+        if (from === to) return fromFormatted;
+        return `${fromFormatted} - ${toFormatted}`;
     };
 
     return (
         <div className="space-y-4">
             <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                    <h1 className="text-xl sm:text-2xl font-bold">Financials</h1>
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold">Financials</h1>
+                        {formatDateRange() && (
+                            <p className="text-sm sm:text-base text-muted-foreground">{formatDateRange()}</p>
+                        )}
+                    </div>
                     <Button
                         variant="destructive"
                         size="sm"
@@ -227,8 +323,7 @@ export default function FinancialsPage() {
                     </Button>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                    {formatDateRange()}
-                    {dayCount > 0 && ` • ${dayCount} day${dayCount !== 1 ? "s" : ""}`}
+                    {dayCount > 0 && `${dayCount} day${dayCount !== 1 ? "s" : ""}`}
                     {stats.fetched > 0 && ` • ${stats.fetched} fetched`}
                     {stats.cached > 0 && ` • ${stats.cached} cached`}
                 </p>
@@ -409,6 +504,116 @@ export default function FinancialsPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Daily Average Card */}
+                    <Card>
+                        <CardHeader className="pb-3 sm:pb-6">
+                            <CardTitle className="text-base sm:text-lg">Daily Average</CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-3 sm:px-6">
+                            <div className="flex items-center justify-center">
+                                <div className="text-center">
+                                    <p className="text-2xl sm:text-3xl font-bold text-green-400">
+                                        ${summary.dailyAverage.toFixed(2)}
+                                    </p>
+                                    {usdToInr && (
+                                        <p className="text-sm sm:text-base text-green-400/70">
+                                            ₹{(summary.dailyAverage * usdToInr).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                        </p>
+                                    )}
+                                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                                        per day ({filteredDates.length} day{filteredDates.length !== 1 ? "s" : ""})
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Earnings Chart */}
+                    {chartData.length > 1 && (() => {
+                        const avgPayout = chartData.reduce((sum, d) => sum + d.payout, 0) / chartData.length;
+                        return (
+                        <Card>
+                            <CardHeader className="pb-3 sm:pb-6">
+                                <CardTitle className="text-base sm:text-lg">Earnings Over Time</CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-3 sm:px-6">
+                                <div className="h-64 sm:h-80 overflow-x-auto sm:overflow-x-visible">
+                                    <div
+                                        className="h-full sm:!min-w-full"
+                                        style={{ minWidth: chartData.length > 7 ? `${chartData.length * 50}px` : "100%" }}
+                                    >
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis
+                                                dataKey="index"
+                                                type="number"
+                                                domain={[0, "dataMax"]}
+                                                tick={{ fill: "#ffffff", fontSize: 11 }}
+                                                tickLine={{ stroke: "rgba(255,255,255,0.3)" }}
+                                                axisLine={{ stroke: "rgba(255,255,255,0.3)" }}
+                                                tickFormatter={(index) => {
+                                                    const item = chartData[index];
+                                                    return item?.date || "";
+                                                }}
+                                            />
+                                            <YAxis
+                                                tick={{ fill: "#ffffff", fontSize: 11 }}
+                                                tickLine={{ stroke: "rgba(255,255,255,0.3)" }}
+                                                axisLine={{ stroke: "rgba(255,255,255,0.3)" }}
+                                                tickFormatter={(value) => `$${value}`}
+                                            />
+                                            <Tooltip
+                                                isAnimationActive={false}
+                                                cursor={{ stroke: "rgba(255,255,255,0.5)", strokeWidth: 1 }}
+                                                contentStyle={{
+                                                    backgroundColor: "#18181b",
+                                                    border: "1px solid #3f3f46",
+                                                    borderRadius: "8px",
+                                                    padding: "8px 12px",
+                                                }}
+                                                labelStyle={{ color: "#ffffff", fontWeight: 500, marginBottom: 4 }}
+                                                itemStyle={{ color: "#4ade80", fontWeight: 700, fontSize: 16 }}
+                                                labelFormatter={(index) => {
+                                                    const item = chartData[Number(index)];
+                                                    return item?.date || "";
+                                                }}
+                                                formatter={(value) => {
+                                                    const num = Number(value) || 0;
+                                                    const inrVal = usdToInr ? ` (₹${(num * usdToInr).toLocaleString("en-IN", { maximumFractionDigits: 0 })})` : "";
+                                                    return [`$${num.toFixed(2)}${inrVal}`, "Payout"];
+                                                }}
+                                            />
+                                            <ReferenceLine
+                                                y={avgPayout}
+                                                stroke="#f59e0b"
+                                                strokeDasharray="5 5"
+                                                strokeWidth={2}
+                                                label={{
+                                                    value: `Avg: $${avgPayout.toFixed(2)}${usdToInr ? ` (₹${(avgPayout * usdToInr).toLocaleString("en-IN", { maximumFractionDigits: 0 })})` : ""}`,
+                                                    position: "insideTopLeft",
+                                                    fill: "#f59e0b",
+                                                    fontSize: 11,
+                                                    fontWeight: 600,
+                                                }}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="payout"
+                                                stroke="#4ade80"
+                                                strokeWidth={2}
+                                                dot={{ fill: "#4ade80", strokeWidth: 0, r: 4 }}
+                                                activeDot={{ r: 6, fill: "#4ade80", stroke: "#ffffff", strokeWidth: 2 }}
+                                            />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        );
+                    })()}
 
                     <Card>
                         <CardHeader className="pb-3 sm:pb-6">
