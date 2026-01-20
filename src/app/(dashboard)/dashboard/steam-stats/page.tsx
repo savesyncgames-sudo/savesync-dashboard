@@ -280,6 +280,22 @@ export default function SteamStatsPage() {
             </CardContent>
           </Card>
 
+          {/* SteamDB Charts */}
+          <Card>
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="text-base sm:text-lg">Player Charts</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <iframe
+                src={`https://steamdb.info/embed/?appid=${stats.appId}`}
+                height="389"
+                className="w-full border-0 rounded-b-lg"
+                loading="lazy"
+                title="SteamDB player charts"
+              />
+            </CardContent>
+          </Card>
+
           {/* Recent Reviews */}
           <Card>
             <CardHeader className="pb-2 sm:pb-4">
