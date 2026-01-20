@@ -386,7 +386,7 @@ export default function FinancialsPage() {
                                     <div className="flex-1 rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="text-[10px] sm:text-xs text-muted-foreground">Customer Pays</p>
+                                                <p className="text-[10px] sm:text-xs text-muted-foreground">Customer Pays <span className="text-foreground font-medium">(100.00%)</span></p>
                                                 <p className="text-base sm:text-xl font-bold">${summary.grossSales.toFixed(2)}</p>
                                             </div>
                                             <div className="text-right">
@@ -406,7 +406,7 @@ export default function FinancialsPage() {
                                         <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                                         </svg>
-                                        <span className="text-xs sm:text-sm font-medium">-${summary.tax.toFixed(2)}</span>
+                                        <span className="text-xs sm:text-sm font-medium">-${summary.tax.toFixed(2)} <span className="opacity-70">({((summary.tax / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></span>
                                     </div>
                                     <span className="text-[10px] sm:text-xs text-muted-foreground">Tax → Govt</span>
                                 </div>
@@ -418,7 +418,7 @@ export default function FinancialsPage() {
                                             <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                                             </svg>
-                                            <span className="text-xs sm:text-sm font-medium">-${Math.abs(summary.returns).toFixed(2)}</span>
+                                            <span className="text-xs sm:text-sm font-medium">-${Math.abs(summary.returns).toFixed(2)} <span className="opacity-70">({((Math.abs(summary.returns) / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></span>
                                             <span className="text-[10px] sm:text-xs opacity-70">{summary.unitsReturned}u</span>
                                         </div>
                                         <span className="text-[10px] sm:text-xs text-muted-foreground">Refunds</span>
@@ -428,7 +428,7 @@ export default function FinancialsPage() {
                                 {/* Step 2: After Tax */}
                                 <div className="flex items-center gap-2 sm:gap-3">
                                     <div className="flex-1 rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
-                                        <p className="text-[10px] sm:text-xs text-muted-foreground">After Tax & Returns</p>
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground">After Tax & Returns <span className="text-foreground font-medium">({((summary.afterTax / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></p>
                                         <p className="text-base sm:text-xl font-bold">${summary.afterTax.toFixed(2)}</p>
                                     </div>
                                     <div className="hidden sm:block text-xs text-muted-foreground text-center w-24">
@@ -442,7 +442,7 @@ export default function FinancialsPage() {
                                         <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                                         </svg>
-                                        <span className="text-xs sm:text-sm font-medium">-${summary.steamCut.toFixed(2)}</span>
+                                        <span className="text-xs sm:text-sm font-medium">-${summary.steamCut.toFixed(2)} <span className="opacity-70">({((summary.steamCut / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></span>
                                     </div>
                                     <span className="text-[10px] sm:text-xs text-muted-foreground">Steam 30% → Valve</span>
                                 </div>
@@ -450,7 +450,7 @@ export default function FinancialsPage() {
                                 {/* Step 3: Developer Cut */}
                                 <div className="flex items-center gap-2 sm:gap-3">
                                     <div className="flex-1 rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
-                                        <p className="text-[10px] sm:text-xs text-muted-foreground">Your 70% Cut</p>
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground">Your 70% Cut <span className="text-foreground font-medium">({((summary.developerCut / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></p>
                                         <p className="text-base sm:text-xl font-bold">${summary.developerCut.toFixed(2)}</p>
                                     </div>
                                     <div className="hidden sm:block text-xs text-muted-foreground text-center w-24">
@@ -464,7 +464,7 @@ export default function FinancialsPage() {
                                         <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                                         </svg>
-                                        <span className="text-xs sm:text-sm font-medium">-${summary.usWithholding.toFixed(2)}</span>
+                                        <span className="text-xs sm:text-sm font-medium">-${summary.usWithholding.toFixed(2)} <span className="opacity-70">({((summary.usWithholding / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></span>
                                     </div>
                                     <span className="text-[10px] sm:text-xs text-muted-foreground">US 15% → IRS <span className="hidden sm:inline">(foreign tax credit)</span></span>
                                 </div>
@@ -474,7 +474,7 @@ export default function FinancialsPage() {
                                     <div className="flex-1 rounded-lg border-2 border-green-500/50 bg-green-500/10 p-2 sm:p-3">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="text-[10px] sm:text-xs text-green-400">You Receive</p>
+                                                <p className="text-[10px] sm:text-xs text-green-400">You Receive <span className="font-medium">({((summary.finalPayout / summary.grossSales) * 100 || 0).toFixed(2)}%)</span></p>
                                                 <p className="text-lg sm:text-2xl font-bold text-green-400">${summary.finalPayout.toFixed(2)}</p>
                                                 {usdToInr && (
                                                     <p className="text-xs sm:text-sm text-green-400/70">
@@ -497,7 +497,7 @@ export default function FinancialsPage() {
                                 {/* Effective Rate */}
                                 <div className="mt-2 pt-2 sm:pt-3 border-t border-border">
                                     <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
-                                        Take-home: <span className="font-medium text-foreground">{((summary.finalPayout / summary.grossSales) * 100 || 0).toFixed(1)}%</span>
+                                        Take-home: <span className="font-medium text-foreground">{((summary.finalPayout / summary.grossSales) * 100 || 0).toFixed(2)}%</span>
                                         <span className="hidden sm:inline"> of gross • Steam net_sales: <span className="font-medium text-foreground">${summary.netSales.toFixed(2)}</span></span>
                                     </p>
                                 </div>
