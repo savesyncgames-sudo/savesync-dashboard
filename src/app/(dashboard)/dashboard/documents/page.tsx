@@ -28,6 +28,18 @@ const DOCUMENTS: Document[] = [
     url: "https://drive.google.com/file/d/1NIrdZfPx8oij8zluvq2tdZdeBA3-mCNC/view?usp=drive_link",
     category: "Legal",
   },
+  {
+    name: "Seema Batra",
+    description: "Personal documents",
+    url: "https://drive.google.com/drive/folders/1SJyYOtNbfF3kwPus-gLVFjHJV6NpeRKV?usp=sharing",
+    category: "Team",
+  },
+  {
+    name: "Sharmila Pradeep Gaonkar",
+    description: "Personal documents",
+    url: "https://drive.google.com/drive/folders/14WbQUbVB1iMCkIRO-n6ua7Oo1F0eoenZ?usp=sharing",
+    category: "Team",
+  },
 ];
 
 export default function DocumentsPage() {
