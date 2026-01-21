@@ -8,6 +8,7 @@ interface Document {
   url: string;
   category: string;
   type: "file" | "folder";
+  password?: string;
 }
 
 const DOCUMENTS: Document[] = [
@@ -17,6 +18,7 @@ const DOCUMENTS: Document[] = [
     url: "https://drive.google.com/file/d/1GOv7SoW-9EmBDILIAx1GfUOb5iDQYYu4/view?usp=sharing",
     category: "Legal",
     type: "file",
+    password: "411014",
   },
   {
     name: "PAN",
@@ -24,6 +26,7 @@ const DOCUMENTS: Document[] = [
     url: "https://drive.google.com/file/d/1mMWlje6vynmBl4O-khUYBaY4vqdV_aTF/view?usp=drive_link",
     category: "Legal",
     type: "file",
+    password: "1512025",
   },
   {
     name: "Certificate of Incorporation",
@@ -91,6 +94,11 @@ export default function DocumentsPage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium truncate">{doc.name}</h3>
                     <p className="text-xs text-muted-foreground">{doc.description}</p>
+                    {doc.password && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Password: <span className="font-mono text-foreground">{doc.password}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="w-full" asChild>
