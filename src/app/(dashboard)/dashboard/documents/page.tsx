@@ -7,6 +7,7 @@ interface Document {
   description: string;
   url: string;
   category: string;
+  type: "file" | "folder";
 }
 
 const DOCUMENTS: Document[] = [
@@ -15,36 +16,42 @@ const DOCUMENTS: Document[] = [
     description: "Tax Deduction Account Number",
     url: "https://drive.google.com/file/d/1GOv7SoW-9EmBDILIAx1GfUOb5iDQYYu4/view?usp=sharing",
     category: "Legal",
+    type: "file",
   },
   {
     name: "PAN",
     description: "Permanent Account Number",
     url: "https://drive.google.com/file/d/1mMWlje6vynmBl4O-khUYBaY4vqdV_aTF/view?usp=drive_link",
     category: "Legal",
+    type: "file",
   },
   {
     name: "Certificate of Incorporation",
     description: "Company incorporation certificate",
     url: "https://drive.google.com/file/d/1NIrdZfPx8oij8zluvq2tdZdeBA3-mCNC/view?usp=drive_link",
     category: "Legal",
+    type: "file",
   },
   {
     name: "Seema Batra",
     description: "Personal documents",
     url: "https://drive.google.com/drive/folders/1SJyYOtNbfF3kwPus-gLVFjHJV6NpeRKV?usp=sharing",
     category: "Team",
+    type: "folder",
   },
   {
     name: "Sharmila Pradeep Gaonkar",
     description: "Personal documents",
     url: "https://drive.google.com/drive/folders/14WbQUbVB1iMCkIRO-n6ua7Oo1F0eoenZ?usp=sharing",
     category: "Team",
+    type: "folder",
   },
   {
     name: "Office Documents",
     description: "Office related documents",
     url: "https://drive.google.com/drive/folders/1_S4xUn3_RUnL4CAw_bY3LntIhYqnti-f?usp=drive_link",
     category: "Office",
+    type: "folder",
   },
 ];
 
@@ -70,10 +77,16 @@ export default function DocumentsPage() {
                 className="rounded-lg border border-border p-4 space-y-3 hover:bg-muted/30 transition-colors"
               >
                 <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-blue-500/20 p-2">
-                    <svg className="h-5 w-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                  <div className={`rounded-lg p-2 ${doc.type === "folder" ? "bg-yellow-500/20" : "bg-blue-500/20"}`}>
+                    {doc.type === "folder" ? (
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium truncate">{doc.name}</h3>
@@ -90,7 +103,7 @@ export default function DocumentsPage() {
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    Open in Google Drive
+                    {doc.type === "folder" ? "Open Folder" : "Open Document"}
                   </a>
                 </Button>
               </div>
