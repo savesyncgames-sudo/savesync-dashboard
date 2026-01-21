@@ -40,6 +40,12 @@ const DOCUMENTS: Document[] = [
     url: "https://drive.google.com/drive/folders/14WbQUbVB1iMCkIRO-n6ua7Oo1F0eoenZ?usp=sharing",
     category: "Team",
   },
+  {
+    name: "Office Documents",
+    description: "Office related documents",
+    url: "https://drive.google.com/drive/folders/1_S4xUn3_RUnL4CAw_bY3LntIhYqnti-f?usp=drive_link",
+    category: "Office",
+  },
 ];
 
 export default function DocumentsPage() {
