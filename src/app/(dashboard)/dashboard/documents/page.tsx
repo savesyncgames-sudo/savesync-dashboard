@@ -8,10 +8,18 @@ interface Document {
   url: string;
   category: string;
   type: "file" | "folder";
+  login?: string;
   password?: string;
 }
 
 const DOCUMENTS: Document[] = [
+  {
+    name: "All Documents",
+    description: "Main documents folder on Google Drive",
+    url: "https://drive.google.com/drive/folders/1IjIzyW3UAJ1Zi_VBwjMsoAAsQ-bJpQCM",
+    category: "Main",
+    type: "folder",
+  },
   {
     name: "TAN Document",
     description: "Tax Deduction Account Number",
@@ -34,6 +42,29 @@ const DOCUMENTS: Document[] = [
     url: "https://drive.google.com/file/d/1NIrdZfPx8oij8zluvq2tdZdeBA3-mCNC/view?usp=drive_link",
     category: "Legal",
     type: "file",
+  },
+  {
+    name: "LLP Deed",
+    description: "Limited Liability Partnership Deed",
+    url: "https://drive.google.com/file/d/1RanrOlVAGAHhoaYvDVrbys2k_u3BWpva/view?usp=drive_link",
+    category: "Legal",
+    type: "file",
+  },
+  {
+    name: "W8 BEN-E",
+    description: "Certificate of Foreign Status for Tax Withholding",
+    url: "https://drive.google.com/file/d/13kPY2bY7wc6l3yDwuR_8xc9WXTSs5zF9/view?usp=sharing",
+    category: "Legal",
+    type: "file",
+  },
+  {
+    name: "MCA Portal",
+    description: "Ministry of Corporate Affairs",
+    url: "https://www.mca.gov.in/content/mca/global/en/home.html",
+    category: "Legal",
+    type: "file",
+    login: "sharmilagnkr18@gmail.com",
+    password: "Sharmila@1",
   },
   {
     name: "Seema Batra",
@@ -94,6 +125,11 @@ export default function DocumentsPage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium truncate">{doc.name}</h3>
                     <p className="text-xs text-muted-foreground">{doc.description}</p>
+                    {doc.login && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Login: <span className="font-mono text-foreground">{doc.login}</span>
+                      </p>
+                    )}
                     {doc.password && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Password: <span className="font-mono text-foreground">{doc.password}</span>
